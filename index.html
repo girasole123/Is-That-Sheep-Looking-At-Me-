@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173f35">
+  <title>Is That Sheep Looking At Me?</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "webpeerjs": "https://esm.sh/webpeerjs@0.2.7"
+    }
+  }
+  </script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="app" aria-live="polite">
+    <section id="loading" class="loading"><strong>Connecting to the sheep network…</strong><p>This can take a little while the first time.</p></section>
+
+    <section id="lobby" class="hidden">
+      <div class="brand"><div class="brand-mark">🐑</div><div><h1>Is That Sheep Looking At Me?</h1><span class="muted">A 2–4 player P2P card game</span><br><small class="muted">Original game by Zedaph and DotDotDash</small></div></div>
+      <div class="lobby-grid">
+        <div class="panel">
+          <h2>Join a flock</h2>
+          <div class="form-row">
+            <label>Your name<input id="name" maxlength="20" placeholder="Rose" autocomplete="nickname"></label>
+            <label>Room code<input id="roomName" class="room-code" maxlength="32" placeholder="fluffy-hill" autocomplete="off"></label>
+          </div>
+          <div class="actions spaced-actions">
+            <button id="joinRoom" class="primary">Join room</button>
+            <button id="copyRoom">Copy room code</button>
+            <button class="text-button" data-rules>Read rules</button>
+          </div>
+          <div id="lobbyNotice" class="notice">Choose the same room code as your friends.</div>
+        </div>
+        <div>
+          <div class="panel">
+            <h2>Players <span id="playerCount">0/4</span></h2>
+            <ul id="players" class="player-list"><li>Join a room to find your flock.</li></ul>
+            <button id="startGame" class="primary" disabled>Start game</button>
+            <p id="startHelp" class="muted">The room host can start with 2–4 players.</p>
+          </div>
+          <div class="panel debug-panel">
+            <h2>Simulation Mode <span class="debug-badge">LOCAL</span></h2>
+            <p class="muted">Start a simulated game with dummy players, inspect any hand, and make moves only for the player whose turn it is.</p>
+            <div class="debug-row">
+              <label>Number of players<select id="debugPlayerCount"><option value="2">2 players</option><option value="3">3 players</option><option value="4">4 players</option></select></label>
+              <button id="startDebug">Start debug game</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="game" class="hidden">
+      <div class="player-status-line">
+        <div id="statusPills" class="status-pills"></div>
+        <div id="gameNotice" class="notice compact-notice"></div>
+      </div>
+      <div class="board spaced-board">
+        <div id="fields" class="fields"></div>
+        <aside class="sidebar">
+          <div class="pile game-meta">
+            <strong id="turnTitle" class="turn-title">The flock is gathering…</strong>
+            <div class="pile-counts"><strong id="deckCount">Draw pile</strong><span id="discardCount" class="muted">Discard: 0</span></div>
+            <div class="game-meta-actions">
+              <label id="debugPerspectiveWrap" class="compact-select hidden">See hand<select id="debugPerspective"></select></label>
+              <button data-rules>Rules</button>
+              <button id="leaveGame">Leave</button>
+            </div>
+          </div>
+          <div class="panel control-panel">
+            <strong>Turn controls</strong>
+            <div id="selectionHelp" class="selection-help">Select cards to make a move.</div>
+            <label id="guessWrap" class="hidden">Coin guess<select id="coinGuess"><option value="head">Looking at me (head)</option><option value="butt">Not looking (butt)</option></select></label>
+            <div class="actions">
+              <button id="drawButton">Draw</button>
+              <button id="playButton" class="primary">Play selected</button>
+              <button id="validateChallenge" class="primary hidden" disabled>Validate challenge</button>
+              <button id="discardButton" class="danger" disabled>Discard selected</button>
+              <button id="clearButton">Clear</button>
+              <button id="baaButton">Baa! End turn</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+      <section class="hand-wrap panel"><h3><span id="handTitleText">Your hand</span> <span id="handCount"></span></h3><div id="hand" class="hand"></div></section>
+    </section>
+  </main>
+
+  <div id="floatingTooltip" class="floating-tooltip hidden" role="tooltip"></div>
+
+  <dialog id="coinDialog" class="coin-dialog">
+    <div class="coin-dialog-content">
+      <h2 id="coinDialogTitle">Challenge coin toss</h2>
+      <p id="coinDialogMatchup" class="muted"></p>
+      <div id="coin" class="coin-face" aria-live="assertive">○</div>
+      <strong id="coinResultText"></strong>
+      <div id="coinCountdownWrap" class="coin-countdown-wrap">
+        <div class="coin-countdown-track"><div id="coinCountdownBar" class="coin-countdown-bar"></div></div>
+        <p><strong id="coinCountdown">5.0</strong> seconds to play Re-Flip</p>
+      </div>
+      <button id="coinReflip" class="primary">Play Re-Flip</button>
+      <p id="coinReflipHelp" class="muted"></p>
+    </div>
+  </dialog>
+
+  <dialog id="gameOverDialog" class="game-over-dialog">
+    <div class="game-over-content">
+      <div class="game-over-icon" aria-hidden="true">🏆</div>
+      <h2 id="gameOverTitle">Game over</h2>
+      <p id="gameOverSummary" class="muted"></p>
+      <ol id="gameOverRanking" class="game-over-ranking"></ol>
+      <div class="actions dialog-actions">
+        <button id="playAgainButton" class="primary">Play another game</button>
+        <button id="gameOverLeaveButton">Leave</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="challengeSelectionDialog" class="challenge-selection-dialog">
+    <div class="challenge-selection-content">
+      <h2 id="challengeSelectionTitle">Choose sheep</h2>
+      <p id="challengeSelectionHelp" class="selection-help"></p>
+      <div id="challengeSelectionSheep" class="challenge-selection-sheep"></div>
+      <div class="actions dialog-actions">
+        <button id="confirmChallengeSelection" class="primary" disabled>Confirm selection</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="discardDialog">
+    <h2>Recover 1 Sheep</h2>
+    <p id="discardHelp" class="selection-help">Choose cards that form one valid sheep.</p>
+    <div id="discardCards" class="discard-dialog-cards"></div>
+    <div class="actions dialog-actions"><button id="confirmRecoverSelection" class="primary" disabled>Recover sheep</button></div>
+  </dialog>
+
+  <dialog id="yoinkDialog" class="yoink-dialog">
+    <h2>Yoink 2 Cards</h2>
+    <p id="yoinkHelp" class="selection-help">Choose two face-down cards.</p>
+    <div id="yoinkCards" class="yoink-card-grid"></div>
+    <div class="actions dialog-actions"><button id="confirmYoinkSelection" class="primary" disabled>Acquire cards</button></div>
+  </dialog>
+
+  <dialog id="rulesDialog">
+    <button class="close" data-close-dialog aria-label="Close">×</button>
+    <h2>Quick rules</h2>
+    <div class="rules-grid">
+      <section><b>Your turn</b><ol><li>Draw one card, or draw until you hold three.</li><li>Play as many moves as you want.</li><li>Discard down to seven, then say “Baa!”</li></ol></section>
+      <section><b>Make a sheep</b><p>Match a head and butt by colour. Rainbow is wild. Paint joins different colours. Franken joins two heads or two butts.</p></section>
+      <section><b>Actions</b><p>Yoink lets you choose two face-down cards from an opponent's hand. Wheat steals one sheep. Wolf discards one sheep. Double-butt Franken blocks Wheat; double-head Franken blocks Wolf.</p></section>
+      <section><b>Challenges</b><p>Play at most one per turn, choose an opponent and guess the coin. The coin appears for everyone for five seconds, during which any player may use Re-Flip. The winner applies the challenge. Challenges left in hand are worth −3.</p></section>
+      <section><b>BodySwap</b><p>Select one hand half and one sheep. The resulting sheep must still be valid. The replaced half returns to your hand.</p></section>
+      <section><b>Finish</b><p>When the draw pile empties, everyone gets one last turn. Sheep score 1; a full rainbow scores 2.</p></section>
+    </div>
+  </dialog>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
+

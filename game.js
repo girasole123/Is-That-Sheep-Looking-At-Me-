@@ -899,9 +899,14 @@ els.coinReflip.onclick = () => {
   const reflipCard = state.snapshot.hand.find((card) => card.id === cardId && card.kind === "action" && card.side === "reflip");
   if (!reflipCard) return;
   els.coinReflip.disabled = true;
-  // This is intentionally self-validating because the modal covers the normal
-  // turn controls. The host removes the card and immediately starts a new toss.
-  command("REFLIP", { cardIds: [reflipCard.id] });
+  // Re-Flip must be playable by any player directly from the coin dialog.
+  // The modal covers the regular turn controls, so the program simulates the
+  // player's input: it selects the Re-Flip card and then automatically clicks
+  // "Play selected". The existing handler detects a reflip while a challenge
+  // is pending and routes to the REFLIP command, removing the card and tossing
+  // the coin again—no separate validation button is required.
+  state.selectedCards = [reflipCard.id];
+  els.playButton.click();
 };
 els.playAgainButton.onclick = () => command("PLAY_AGAIN");
 els.gameOverLeaveButton.onclick = () => location.reload();

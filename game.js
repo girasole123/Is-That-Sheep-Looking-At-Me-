@@ -381,8 +381,11 @@ function bodySwap(actor, handCard, ref) {
 }
 
 function playReflip(actor, data) {
-  const game = state.server; if (!game.pending) return hostNotice("There is no coin to re-flip.", true);
-  const card = actor.hand.find((item) => item.id === data.cardIds?.[0] && item.side === "reflip"); if (!card) return hostNotice("You do not have that Re-Flip card.", true);
+  const game = state.server; if (!game.pending) return hostNotice("There is no coin to re-flip.", true, actor.id);
+  if (Date.now() >= game.pending.resolvesAt) return hostNotice("The Re-Flip window has closed.", true, actor.id);
+  const cardId = Array.isArray(data.cardIds) ? data.cardIds[0] : null;
+  const card = actor.hand.find((item) => item.id === cardId && item.kind === "action" && item.side === "reflip");
+  if (!card) return hostNotice("You do not have that Re-Flip card.", true, actor.id);
   actor.hand.splice(actor.hand.indexOf(card), 1); game.discard.push(card);
   const previousCoin = game.pending.coin;
   game.pending.coin = Math.random() < .5 ? "head" : "butt";
@@ -606,7 +609,9 @@ function renderCoinDialog(game) {
   if (game.pending) {
     const challenger = game.players.find((player) => player.id === game.pending.actorId);
     const opponent = game.players.find((player) => player.id === game.pending.targetId);
-    const reflipCard = game.hand.find((card) => card.side === "reflip");
+    // Every player receives the pending challenge in their snapshot, so this
+    // modal—and the Re-Flip action—appears for everyone at the table.
+    const reflipCard = game.hand.find((card) => card.kind === "action" && card.side === "reflip");
     const challengeName = CARD_NAMES[game.pending.effect] || "Challenge";
     const chosenIssue = game.pending.guess === "head" ? "looking sheep (head)" : "sheep butt";
     els.coinDialogTitle.textContent = challengeName;
@@ -617,7 +622,7 @@ function renderCoinDialog(game) {
     els.coinReflip.disabled = !reflipCard;
     els.coinReflip.dataset.cardId = reflipCard?.id || "";
     els.coinReflip.textContent = "Use Re-Flip now";
-    els.coinReflipHelp.textContent = reflipCard ? "This immediately plays Re-Flip and tosses the coin again—no validation is needed." : "You do not have a Re-Flip card.";
+    els.coinReflipHelp.textContent = reflipCard ? "Play it directly from this dialog. It is discarded automatically and the coin is tossed again—no separate validation is needed." : "You do not have a Re-Flip card.";
     const updateCountdown = () => {
       const remaining = Math.max(0, game.pending.resolvesAt - Date.now());
       els.coinCountdown.textContent = (remaining / 1000).toFixed(1);
@@ -889,12 +894,13 @@ els.confirmYoinkSelection.onclick = () => {
   command("CHALLENGE_SELECTION", { cardIds: state.selectedYoink });
 };
 els.coinReflip.onclick = () => {
-  if (!state.snapshot?.pending) return;
-  const reflipCard = state.snapshot.hand.find((card) => card.side === "reflip");
+  if (!state.snapshot?.pending || els.coinReflip.disabled) return;
+  const cardId = els.coinReflip.dataset.cardId;
+  const reflipCard = state.snapshot.hand.find((card) => card.id === cardId && card.kind === "action" && card.side === "reflip");
   if (!reflipCard) return;
   els.coinReflip.disabled = true;
-  // The dialog action is self-validating: it plays the available Re-Flip
-  // immediately, without using the turn-control validation button.
+  // This is intentionally self-validating because the modal covers the normal
+  // turn controls. The host removes the card and immediately starts a new toss.
   command("REFLIP", { cardIds: [reflipCard.id] });
 };
 els.playAgainButton.onclick = () => command("PLAY_AGAIN");

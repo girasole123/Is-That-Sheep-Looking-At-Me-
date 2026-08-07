@@ -299,7 +299,6 @@ function discardCards(actor, data) {
   if (actor.hand.length <= 7) return hostNotice("You only discard when you have more than 7 cards.", true);
   const cards = actor.hand.filter((card) => ids.includes(card.id));
   if (!cards.length) return hostNotice("Select at least one card to discard.", true);
-  if (cards.some((card) => card.kind === "challenge")) return hostNotice("Challenge cards cannot be discarded.", true);
   const amountNeeded = actor.hand.length - 7;
   if (cards.length > amountNeeded) return hostNotice(`Discard no more than ${amountNeeded} card${amountNeeded === 1 ? "" : "s"}.`, true, actor.id);
   const removed = removeCards(actor.hand, ids); if (!removed) return hostNotice("That selection is no longer available.", true, actor.id);
@@ -577,9 +576,8 @@ function renderGame() {
   // valid move, including a FrankenSheep, before ending the turn.
   els.playButton.disabled = game.phase !== "playing" || Boolean(game.pendingSelection) || (!myTurn && !canReflip) || (myTurn && !turnReady) || !selected.length || !hasValidActionSheep || !hasValidYoinkTarget;
   const mustDiscard = game.hand.length > 7;
-  els.discardButton.disabled = game.phase !== "playing" || !myTurn || !turnReady || Boolean(game.pending) || Boolean(game.pendingSelection) || !mustDiscard || !selected.length || selected.some((card) => card.kind === "challenge");
-  if (selected.some((card) => card.kind === "challenge")) els.discardButton.title = "Challenge cards cannot be discarded.";
-  else els.discardButton.title = mustDiscard ? "Discard selected cards." : "You only discard when holding more than 7 cards.";
+  els.discardButton.disabled = game.phase !== "playing" || !myTurn || !turnReady || Boolean(game.pending) || Boolean(game.pendingSelection) || !mustDiscard || !selected.length;
+  els.discardButton.title = mustDiscard ? "Discard selected cards." : "You only discard when holding more than 7 cards.";
   els.baaButton.disabled = game.phase !== "playing" || !myTurn || !turnReady || Boolean(game.pending) || Boolean(game.pendingSelection) || mustDiscard;
   els.baaButton.title = mustDiscard ? "Discard or play cards until you have 7 or fewer." : "End your turn";
   els.playButton.textContent = canReflip ? "Re-flip coin" : "Play selected";
